@@ -50,7 +50,7 @@
 
         checks = {
           tests = pkgs.stdenvNoCC.mkDerivation {
-            name = "bash-env-tests";
+            name = "bash_env_tests";
             src = ./.;
             nativeBuildInputs = testDeps;
             dontBuild = true;
@@ -85,7 +85,7 @@
           default =
             pkgs.stdenvNoCC.mkDerivation
             {
-              name = "bash-env-nu";
+              name = "nu_plugin_bash_env";
               src = ./bash-env.nu;
               dontUnpack = true;
               preferLocalBuild = true;
@@ -94,12 +94,12 @@
               installPhase = ''
                 runHook preBuild
                 mkdir -p "$out/bin"
-                substitute "$src" "$out/bin/bash-env.nu" --replace-fail ${lib.escapeShellArg "bash-env-json"} ${lib.escapeShellArg "${pkgs.bash-env-json}/bin/bash-env-json"}
-                chmod +x "$out/bin/bash-env.nu"
+                substitute "$src" "$out/bin/plugin_nu_bash_env" --replace-fail ${lib.escapeShellArg "bash-env-json"} ${lib.escapeShellArg "${pkgs.bash-env-json}/bin/bash-env-json"}
+                chmod +x "$out/bin/plugin_nu_bash_env"
                 runHook postBuild
               '';
 
-              meta.mainProgram = "bash-env.nu";
+              meta.mainProgram = "nu_plugin_bash_env";
             };
         };
       };

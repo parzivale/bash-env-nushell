@@ -95,7 +95,7 @@
                 runHook preBuild
                 mkdir -p "$out/bin"
                 substitute "$src" "$out/bin/nu_plugin_bash_env" --replace-fail ${lib.escapeShellArg "bash-env-json"} ${lib.escapeShellArg "${pkgs.bash-env-json}/bin/bash-env-json"}
-                chmod +x "$out/bin/plugin_nu_bash_env"
+                chmod +x "$out/bin/nu_plugin_bash_env"
                 runHook postBuild
               '';
 

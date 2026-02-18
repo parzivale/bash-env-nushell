@@ -4,65 +4,69 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
-    flake-utils.url = "github:numtide/flake-utils";
-
-    bash-env-json = {
-      url = "github:tesujimath/bash-env-json/main";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
-  outputs = { nixpkgs, flake-utils, bash-env-json, ... }:
-    flake-utils.lib.eachDefaultSystem
-      (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-          };
+  outputs = inputs @ {
+    flake-parts,
+    nixpkgs,
+    ...
+  }:
+    flake-parts.lib.mkFlake {
+      inherit inputs;
+    } {
+      # fuck darwin
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      flake = {
+      };
 
-          inherit (pkgs) lib stdenvNoCC;
-          flakePkgs = {
-            bash-env-json = bash-env-json.packages.${system}.default;
+      perSystem = {
+        pkgs,
+        lib,
+        ...
+      }: {
+        devShells.default = let
+          inherit
+            (pkgs)
+            bash-env-json
+            mkShell
+            bashInteractive
+            jq
+            nushell
+            ;
+        in
+          mkShell {
+            nativeBuildInputs = [
+              bash-env-json
+              bashInteractive
+              jq
+              nushell
+            ];
           };
-
-          bash-env-module-with-bash-env-json = stdenvNoCC.mkDerivation
+        packages = {
+          default =
+            pkgs.stdenvNoCC.mkDerivation
             {
-              name = "bash-env.nu-with-bash-env-json";
+              name = "bash-env-nu";
               src = ./bash-env.nu;
               dontUnpack = true;
               preferLocalBuild = true;
               allowSubstitutes = false;
 
-              buildPhase = ''
+              installPhase = ''
                 runHook preBuild
-                mkdir -p "$out"
-                substitute "$src" "$out/bash-env.nu" --replace-fail ${lib.escapeShellArg "bash-env-json"} ${lib.escapeShellArg "${flakePkgs.bash-env-json}/bin/bash-env-json"}
+                mkdir -p "$out/bin"
+                substitute "$src" "$out/bin/bash-env.nu" --replace-fail ${lib.escapeShellArg "bash-env-json"} ${lib.escapeShellArg "${pkgs.bash-env-json}/bin/bash-env-json"}
+                chmod +x "$out/bin/bash-env.nu"
                 runHook postBuild
               '';
-            };
-        in
-        {
-          devShells.default =
-            let
-              inherit (pkgs)
-                mkShell
-                bashInteractive
-                jq
-                nushell;
-            in
 
-            mkShell {
-              nativeBuildInputs = [
-                bashInteractive
-                jq
-                nushell
-              ];
+              meta.mainProgram = "bash-env.nu";
             };
-
-          packages = {
-            default = bash-env-module-with-bash-env-json;
-            module = bash-env-module-with-bash-env-json;
-          };
-        }
-      );
+        };
+      };
+    };
 }

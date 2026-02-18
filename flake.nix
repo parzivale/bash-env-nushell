@@ -19,6 +19,7 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "aarch64-darwin"
       ];
       flake = {
       };
@@ -26,26 +27,60 @@
       perSystem = {
         pkgs,
         lib,
+        self',
         ...
-      }: {
-        devShells.default = let
-          inherit
-            (pkgs)
-            bash-env-json
-            mkShell
-            bashInteractive
-            jq
-            nushell
-            ;
-        in
-          mkShell {
-            nativeBuildInputs = [
-              bash-env-json
-              bashInteractive
-              jq
-              nushell
-            ];
+      }: let
+        inherit
+          (pkgs)
+          bash-env-json
+          bashInteractive
+          jq
+          nushell
+          ;
+        testDeps = [
+          bash-env-json
+          bashInteractive
+          jq
+          nushell
+        ];
+      in {
+        devShells.default = pkgs.mkShell {
+          nativeBuildInputs = testDeps;
+        };
+
+        checks = {
+          tests = pkgs.stdenvNoCC.mkDerivation {
+            name = "bash-env-tests";
+            src = ./.;
+            nativeBuildInputs = testDeps;
+            dontBuild = true;
+            doCheck = true;
+            checkPhase = ''
+              nu --no-config-file --no-history -c '
+                use std/testing *
+                source tests.nu
+                let test_cmds = (scope commands | where attributes.0?.name? == "test" | get name)
+                for cmd in $test_cmds {
+                  print -n $"Testing: ($cmd) ... "
+                  let result = do { nu --no-config-file --no-history -c $"use std/testing *\nuse std/assert\nuse bash-env.nu\nsource tests.nu\n($cmd)" } | complete
+                  if $result.exit_code == 0 {
+                    print "OK"
+                  } else {
+                    print $"FAILED\n($result.stderr)"
+                    exit 1
+                  }
+                }
+                print "All tests passed"
+              '
+            '';
+            installPhase = ''
+              touch $out
+            '';
           };
+
+          package = self'.packages.default;
+        };
+
         packages = {
           default =
             pkgs.stdenvNoCC.mkDerivation
